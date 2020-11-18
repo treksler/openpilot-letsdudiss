@@ -6,6 +6,8 @@ from opendbc.can.packer import CANPacker
 
 class CarControllerParams():
   def __init__(self):
+    #@letdudiss 18 Nov 2020 Reduced max steer for new Subarus (Impreza 2021) with lower torque limit
+    #Avoids LKAS and ES fault when OP apply a steer value exceed what ES allows
     self.STEER_MAX = 1439              # max_steer 4095
     self.STEER_STEP = 2                # how often we update the steer cmd
     self.STEER_DELTA_UP = 50           # torque increase per refresh, 0.8s to max
@@ -42,6 +44,9 @@ class CarController():
       apply_steer = apply_std_steer_torque_limits(new_steer, self.apply_steer_last, CS.out.steeringTorque, self.params)
       self.steer_rate_limited = new_steer != apply_steer
 
+    #@letdudiss 18 Nov 2020 Work around for steerWarning to
+    #Avoids LKAS and ES fault when OP apply a steer value exceed what ES allows
+    #set Steering value to 0 when a steer Warning is present
       if not enabled or CS.out.steerWarning:
         apply_steer = 0
 
