@@ -1,6 +1,6 @@
 from selfdrive.car import apply_std_steer_torque_limits
 from selfdrive.car.subaru import subarucan
-from selfdrive.car.subaru.values import DBC, PREGLOBAL_CARS
+from selfdrive.car.subaru.values import DBC, PREGLOBAL_CARS, REDUCED_TORQUE_CARS
 from opendbc.can.packer import CANPacker
 
 
@@ -8,7 +8,10 @@ class CarControllerParams():
   def __init__(self):
     #@letdudiss 18 Nov 2020 Reduced max steer for new Subarus (Impreza 2021) with lower torque limit
     #Avoids LKAS and ES fault when OP apply a steer value exceed what ES allows
-    self.STEER_MAX = 1439              # max_steer 4095
+    if CS.CP.carFingerprint in REDUCED_TORQUE_CARS:
+      self.STEER_MAX = 1439            # max_steer for cars with reduced torque limits
+    else:
+      self.STEER_MAX = 2047            # max_steer 4095
     self.STEER_STEP = 2                # how often we update the steer cmd
     self.STEER_DELTA_UP = 50           # torque increase per refresh, 0.8s to max
     self.STEER_DELTA_DOWN = 70         # torque decrease per refresh
@@ -47,7 +50,7 @@ class CarController():
     #@letdudiss 18 Nov 2020 Work around for steerWarning to
     #Avoids LKAS and ES fault when OP apply a steer value exceed what ES allows
     #set Steering value to 0 when a steer Warning is present
-      if not enabled or CS.out.steerWarning:
+      if not enabled or (CS.out.steerWarning and CS.CP.carFingerprint in REDUCED_TORQUE_CARS):
         apply_steer = 0
 
       if CS.CP.carFingerprint in PREGLOBAL_CARS:
