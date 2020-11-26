@@ -24,6 +24,7 @@ class CarController():
     self.lkas_active = False
     self.apply_steer_last = 0
     self.es_distance_cnt = -1
+    self.throttle_cnt = -1
     self.es_accel_cnt = -1
     self.es_lkas_cnt = -1
     self.fake_button_prev = 0
@@ -105,47 +106,25 @@ class CarController():
         and CS.car_follow == 1
         and not self.manual_hold
         and not self.sng_cancel_acc):
-      self.sng_cancel_acc = True
-      self.sng_resume_acc = False
+      self.sng_resume_acc = True
 
     self.prev_close_distance = CS.close_distance
     self.prev_cruise_state = CS.cruise_state
 
-    # SNG: trigger ACC resume when cruise state becomes ready
-    if (self.sng_cancel_acc_done and CS.cruise_state == 2):
-      self.sng_resume_acc = True
-      self.sng_cancel_acc_done = False
-
     # SNG: stop the SNG sequence on brake or gas press
     if CS.out.brakePressed or CS.out.gasPressed:
-      self.sng_cancel_acc = False
       self.sng_resume_acc = False
-      self.sng_cancel_acc_done = False
 
-    if self.brake_cnt != CS.brake_msg["Counter"]:
-      # SNG: send brake_cmd to cancel acc in hold
-      if self.sng_cancel_acc:
-        if self.sng_cancel_cnt < P.SNG_CANCEL_LIMIT:
-            brake_cmd = True
-            self.sng_cancel_cnt += 1
-        else:
-            self.sng_cancel_acc = False
-            self.sng_cancel_acc_done = True
-            self.sng_cancel_cnt = -1
-      can_sends.append(subarucan.create_brake(self.packer, CS.brake_msg, brake_cmd))
-      self.brake_cnt = CS.brake_msg["Counter"]
-
-    if self.es_distance_cnt != CS.es_distance_msg["Counter"]:
-      # SNG: send pcm_resume_cmd to reenable ACC and openpilot
+    if self.throttle_cnt != CS.throttle_msg["Counter"]:
+      #SNG: Send small throttle when its time to move
       if self.sng_resume_acc:
         if self.sng_resume_cnt < P.SNG_RESUME_LIMIT:
-            pcm_resume_cmd = True
-            self.sng_resume_cnt += 1
+          can_sends.append(subarucan.create_throttle(self.packer, CS.throttle_msg, 5))
+          self.sng_resume_cnt += 1
         else:
-            self.sng_resume_acc = False
-            self.sng_resume_cnt = -1
-      can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg, pcm_cancel_cmd, pcm_resume_cmd))
-      self.es_distance_cnt = CS.es_distance_msg["Counter"]
+          self.sng_resume_acc = False
+           self.sng_resume_cnt = -1
+      self.throttle_cnt = CS.throttle_msg["Counter"]     
 
     # *** alerts and pcm cancel ***
     if CS.CP.carFingerprint in PREGLOBAL_CARS:
@@ -169,9 +148,9 @@ class CarController():
         self.es_accel_cnt = CS.es_accel_msg["Counter"]
 
     else:
-      #if self.es_distance_cnt != CS.es_distance_msg["Counter"]:
-      #  can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg, pcm_cancel_cmd))
-      #  self.es_distance_cnt = CS.es_distance_msg["Counter"]
+      if self.es_distance_cnt != CS.es_distance_msg["Counter"]:
+        can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg, pcm_cancel_cmd))
+        self.es_distance_cnt = CS.es_distance_msg["Counter"]
       if self.es_lkas_cnt != CS.es_lkas_msg["Counter"]:
         can_sends.append(subarucan.create_es_lkas(self.packer, CS.es_lkas_msg, visual_alert, left_line, right_line))
         self.es_lkas_cnt = CS.es_lkas_msg["Counter"]

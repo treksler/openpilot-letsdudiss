@@ -19,13 +19,13 @@ def create_steering_control(packer, apply_steer, frame, steer_step):
 def create_steering_status(packer, apply_steer, frame, steer_step):
   return packer.make_can_msg("ES_LKAS_State", 0, {})
 
-def create_es_distance(packer, es_distance_msg, pcm_cancel_cmd, pcm_resume_cmd):
+def create_es_distance(packer, es_distance_msg, pcm_cancel_cmd):
 
   values = copy.copy(es_distance_msg)
   if pcm_cancel_cmd:
     values["Cruise_Cancel"] = 1
-  elif pcm_resume_cmd:
-    values["Cruise_Resume"] = 1
+  #elif pcm_resume_cmd:
+  #  values["Cruise_Resume"] = 1
 
   return packer.make_can_msg("ES_Distance", 0, values)
 
@@ -50,6 +50,13 @@ def create_brake(packer, brake_msg, brake_cmd):
     values["Brake_Lights"] = 1
 
   return packer.make_can_msg("Brake_Pedal", 2, values)
+
+def create_throttle(packer, throttle_msg, throttle_cmd):
+
+  values = copy.copy(throttle_msg)
+  values["Throttle_Pedal"] = throttle_cmd
+
+  return packer.make_can_msg("Throttle", 0, values)
 
 # *** Subaru Pre-global ***
 

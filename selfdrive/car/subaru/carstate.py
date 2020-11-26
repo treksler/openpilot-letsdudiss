@@ -80,6 +80,7 @@ class CarState(CarStateBase):
       self.es_lkas_msg = copy.copy(cp_cam.vl["ES_LKAS_State"])
 
       self.brake_msg = copy.copy(cp.vl["Brake_Pedal"])
+      self.throttle_msg = copy.copy(cp.vl["Throttle"])
 
       self.close_distance = cp_cam.vl["ES_Distance"]['Close_Distance']
       self.car_follow = cp_cam.vl["ES_Distance"]['Car_Follow']
