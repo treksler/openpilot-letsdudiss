@@ -54,9 +54,11 @@ def create_brake(packer, brake_msg, brake_cmd):
 def create_throttle(packer, throttle_msg, throttle_cmd):
 
   values = copy.copy(throttle_msg)
-  values["Throttle_Pedal"] = throttle_cmd
+  #Only modify throttle_pedal if command is True, otherwise, just bypass/forward original message
+  if throttle_cmd:
+    values["Throttle_Pedal"] = 5 #Send throttle command of 5 to fake an accelerator pedal tap
 
-  return packer.make_can_msg("Throttle", 0, values)
+  return packer.make_can_msg("Throttle", 2, values)
 
 # *** Subaru Pre-global ***
 

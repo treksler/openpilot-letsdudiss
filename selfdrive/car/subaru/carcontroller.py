@@ -46,8 +46,7 @@ class CarController():
     """ Controls thread """
 
     P = self.params
-    pcm_resume_cmd = False
-    brake_cmd = False
+    throttle_cmd = False #Always reset/assume throttle override command, safety for my stupidity
 
     # Send CAN commands.
     can_sends = []
@@ -115,16 +114,14 @@ class CarController():
     if CS.out.brakePressed or CS.out.gasPressed:
       self.sng_resume_acc = False
 
-    if self.throttle_cnt != CS.throttle_msg["Counter"]:
-      #SNG: Send small throttle when its time to move
-      if self.sng_resume_acc:
-        if self.sng_resume_cnt < P.SNG_RESUME_LIMIT:
-          can_sends.append(subarucan.create_throttle(self.packer, CS.throttle_msg, 5))
-          self.sng_resume_cnt += 1
-        else:
-          self.sng_resume_acc = False
-           self.sng_resume_cnt = -1
-      self.throttle_cnt = CS.throttle_msg["Counter"]     
+    #SNG: Send small throttle when its time to move
+    if self.sng_resume_acc:
+      if self.sng_resume_cnt < P.SNG_RESUME_LIMIT:
+        throttle_cmd = True
+        self.sng_resume_cnt += 1
+      else:
+        self.sng_resume_acc = False
+        self.sng_resume_cnt = -1
 
     # *** alerts and pcm cancel ***
     if CS.CP.carFingerprint in PREGLOBAL_CARS:
@@ -154,5 +151,9 @@ class CarController():
       if self.es_lkas_cnt != CS.es_lkas_msg["Counter"]:
         can_sends.append(subarucan.create_es_lkas(self.packer, CS.es_lkas_msg, visual_alert, left_line, right_line))
         self.es_lkas_cnt = CS.es_lkas_msg["Counter"]
+      #Send throttle message  
+      if self.throttle_cnt != CS.throttle_msg["Counter"]:
+        can_sends.append(subarucan.create_throttle(self.packer, CS.throttle_msg, throttle_cmd))
+        self.throttle_cnt = CS.throttle_msg["Counter"]
 
     return can_sends
