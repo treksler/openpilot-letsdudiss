@@ -15,6 +15,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <fstream>
 #include <streambuf>
 #include <thread>
 #include <mutex>
@@ -67,7 +68,6 @@ LogCameraInfo cameras_logged[LOG_CAMERA_ID_MAX] = {
     .stream_type = VISION_STREAM_YUV,
     .filename = "fcamera.hevc",
     .frame_packet_name = "frame",
-    .encode_idx_name = "encodeIdx",
     .fps = MAIN_FPS,
     .bitrate = MAIN_BITRATE,
     .is_h265 = true,
@@ -78,7 +78,6 @@ LogCameraInfo cameras_logged[LOG_CAMERA_ID_MAX] = {
     .stream_type = VISION_STREAM_YUV_FRONT,
     .filename = "dcamera.hevc",
     .frame_packet_name = "frontFrame",
-    .encode_idx_name = "frontEncodeIdx",
     .fps = MAIN_FPS, // on EONs, more compressed this way
     .bitrate = DCAM_BITRATE,
     .is_h265 = true,
@@ -89,7 +88,6 @@ LogCameraInfo cameras_logged[LOG_CAMERA_ID_MAX] = {
     .stream_type = VISION_STREAM_YUV_WIDE,
     .filename = "ecamera.hevc",
     .frame_packet_name = "wideFrame",
-    .encode_idx_name = "wideEncodeIdx",
     .fps = MAIN_FPS,
     .bitrate = MAIN_BITRATE,
     .is_h265 = true,
@@ -130,6 +128,11 @@ double randrange(double a, double b) {
 volatile sig_atomic_t do_exit = 0;
 static void set_do_exit(int sig) {
   do_exit = 1;
+}
+
+static bool file_exists (const std::string& fn) {
+  std::ifstream f(fn);
+  return f.good();
 }
 
 class RotateState {
@@ -234,9 +237,6 @@ void encoder_thread(RotateState *rotate_state, bool raw_clips, int cam_idx) {
   int my_idx = s.num_encoder;
   s.num_encoder += 1;
   pthread_mutex_unlock(&s.rotate_lock);
-
-  PubSocket *idx_sock = PubSocket::create(s.ctx, cameras_logged[cam_idx].encode_idx_name);
-  assert(idx_sock != NULL);
 
   LoggerHandle *lh = NULL;
 
@@ -377,8 +377,12 @@ void encoder_thread(RotateState *rotate_state, bool raw_clips, int cam_idx) {
 
         // publish encode index
         MessageBuilder msg;
-        auto eidx = msg.initEvent().initEncodeIdx();
+        // this is really ugly
+        auto eidx = cam_idx == LOG_CAMERA_ID_DCAMERA ? msg.initEvent().initFrontEncodeIdx() :
+                    (cam_idx == LOG_CAMERA_ID_ECAMERA ? msg.initEvent().initWideEncodeIdx() : msg.initEvent().initEncodeIdx());
         eidx.setFrameId(extra.frame_id);
+        eidx.setTimestampSof(extra.timestamp_sof);
+        eidx.setTimestampEof(extra.timestamp_eof);
   #ifdef QCOM2
         eidx.setType(cereal::EncodeIndex::Type::FULL_H_E_V_C);
   #else
@@ -390,10 +394,6 @@ void encoder_thread(RotateState *rotate_state, bool raw_clips, int cam_idx) {
         eidx.setSegmentId(out_id);
 
         auto bytes = msg.toBytes();
-
-        if (idx_sock->send((char*)bytes.begin(), bytes.size()) < 0) {
-          printf("err sending encodeIdx pkt: %s\n", strerror(errno));
-        }
         if (lh) {
           lh_log(lh, bytes.begin(), bytes.size(), false);
         }
@@ -453,8 +453,6 @@ void encoder_thread(RotateState *rotate_state, bool raw_clips, int cam_idx) {
     visionstream_destroy(&stream);
   }
 
-  delete idx_sock;
-
   if (encoder_inited) {
     LOG("encoder destroy");
     encoder_close(&encoder);
@@ -482,7 +480,14 @@ kj::Array<capnp::word> gen_init_data() {
   MessageBuilder msg;
   auto init = msg.initEvent().initInitData();
 
-  init.setDeviceType(cereal::InitData::DeviceType::NEO);
+  if (file_exists("/EON"))
+    init.setDeviceType(cereal::InitData::DeviceType::NEO);
+  else if (file_exists("/TICI")) {
+    init.setDeviceType(cereal::InitData::DeviceType::TICI);
+  } else {
+    init.setDeviceType(cereal::InitData::DeviceType::PC);
+  }
+
   init.setVersion(capnp::Text::Reader(COMMA_VERSION));
 
   std::ifstream cmdline_stream("/proc/cmdline");
@@ -607,7 +612,7 @@ int main(int argc, char** argv) {
   int err;
 
 #ifdef QCOM
-  set_realtime_priority(50);
+  setpriority(PRIO_PROCESS, 0, -12);
 #endif
 
   if (argc > 1 && strcmp(argv[1], "--bootlog") == 0) {
