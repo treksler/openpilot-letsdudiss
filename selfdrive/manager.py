@@ -188,6 +188,7 @@ managed_processes = {
   "dmonitoringmodeld": ("selfdrive/modeld", ["./dmonitoringmodeld"]),
   "modeld": ("selfdrive/modeld", ["./modeld"]),
   "rtshield": "selfdrive.rtshield",
+  "appd": "selfdrive.dragonpilot.appd",
 }
 
 daemon_processes = {
@@ -213,6 +214,7 @@ persistent_processes = [
   'ui',
   'uploader',
   'deleter',
+  'appd',
 ]
 
 if not PC:
