@@ -241,12 +241,31 @@ class App():
                      returncode=e.returncode)
 
 def init_apps(apps):
+  '''
   apps.append(App(
     "com.waze",
     "am start -n com.waze/com.waze.MainActivity",
     "dp_app_waze",
     None,
     "dp_app_waze_manual",
+    App.TYPE_FULLSCREEN,
+    False,
+    [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.RECORD_AUDIO",
+    ],
+    [],
+  ))
+  '''
+  apps.append(App(
+    "com.sygic.aura",
+    "am start -n com.sygic.aura/com.sygic.aura.activity.NaviNativeActivity",
+    "dp_app_sygic",
+    None,
+    "dp_app_sygic_manual",
     App.TYPE_FULLSCREEN,
     False,
     [
@@ -276,7 +295,7 @@ def main():
       #check if we are on road, run waze if on road, i.e ignition detected, kill app if not on road
       is_onroad = params.get("IsOffroad") != b"1"
       #start GPS app right away if ignition change is detected
-      #TODO: Improve the way we detect if Waze app is running or not
+      #TODO: Improve the way we detect if Waze/Sygic app is running or not
       if is_onroad and not is_onroad_prev:
         for app in apps:  
           app.run()
@@ -286,7 +305,7 @@ def main():
             app.kill()
 
 
-      #try to restart Waze app every 30 seconds (.i.e every 30 frames)
+      #try to restart Waze/Sygic app every 30 seconds (.i.e every 30 frames)
       if frame >= 30:
         frame = 0 #reset frame count when it exceeds 30
         for app in apps:
