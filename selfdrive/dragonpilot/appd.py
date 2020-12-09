@@ -211,7 +211,10 @@ class App():
     self.is_running = True
     '''
 
-  def kill(self, force = False):
+  def kill(self):
+    self.system("killall %s" % self.app)
+    self.is_running = False
+    '''
     if self.is_installed and (force or self.is_enabled):
       # app is manually ctrl, we record that
       if self.manual_ctrl_param is not None and self.manual_ctrl_status == self.MANUAL_OFF:
@@ -226,6 +229,7 @@ class App():
 
         self.system("pkill %s" % self.app)
         self.is_running = False
+    '''    
 
   def system(self, cmd):
     try:
@@ -272,9 +276,15 @@ def main():
       #check if we are on road, run waze if on road, i.e ignition detected, kill app if not on road
       is_onroad = params.get("IsOffroad") != b"1"
       #start GPS app right away if ignition change is detected
+      #TODO: Improve the way we detect if Waze app is running or not
       if is_onroad and not is_onroad_prev:
-        for app in apps:
+        for app in apps:  
           app.run()
+      if not is_onroad:
+        for app in apps:
+          if app.is_running:
+            app.kill()
+
 
       #try to restart Waze app every 30 seconds (.i.e every 30 frames)
       if frame >= 30:
@@ -282,8 +292,6 @@ def main():
         for app in apps:
           if is_onroad and is_onroad_prev:
             app.run()
-          if not is_onroad:
-            app.kill()
       
       #update is_onroad_prev    
       is_onroad_prev = is_onroad      
