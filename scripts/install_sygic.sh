@@ -1,8 +1,8 @@
 #!/bin/sh
 
-chmod 777 /data/openpilot/apk/
-chmod 777 /data/openpilot/apk/com.sygic.aura.apk
-pm install -r -d "/data/openpilot/apk/com.sygic.aura.apk"
+chmod 777 /data/openpilot/customapks/
+chmod 777 /data/openpilot/customapks/com.sygic.aura17.9.4.apk
+pm install -r -d "/data/openpilot/customapks/com.sygic.aura17.9.4.apk"
 pm enable com.sygic.aura
 
 pm grant com.sygic.aura android.permission.ACCESS_FINE_LOCATION

@@ -192,44 +192,10 @@ class App():
     self.system("pm enable %s" % self.app)  
     self.system(self.start_cmd)
     self.is_running = True
-    '''  
-    if self.is_installed and (force or self.is_enabled):
-      # app is manually ctrl, we record that
-      if self.manual_ctrl_param is not None and self.manual_ctrl_status == self.MANUAL_ON:
-        put_nonblocking(self.manual_ctrl_param, '0')
-        put_nonblocking('dp_last_modified', str(floor(time.time())))
-        self.manually_ctrled = True
-        self.is_running = False
-
-      # only run app if it's not running
-      if force or not self.is_running:
-        self.system("pm enable %s" % self.app)
-
-        if self.app_type == self.TYPE_SERVICE:
-          self.appops_set(self.app, "android:mock_location", "allow")
-        self.system(self.start_cmd)
-    self.is_running = True
-    '''
 
   def kill(self):
     self.system("killall %s" % self.app)
     self.is_running = False
-    '''
-    if self.is_installed and (force or self.is_enabled):
-      # app is manually ctrl, we record that
-      if self.manual_ctrl_param is not None and self.manual_ctrl_status == self.MANUAL_OFF:
-        put_nonblocking(self.manual_ctrl_param, '0')
-        self.manually_ctrled = True
-        self.is_running = True
-
-      # only kill app if it's running
-      if force or self.is_running:
-        if self.app_type == self.TYPE_SERVICE:
-          self.appops_set(self.app, "android:mock_location", "deny")
-
-        self.system("pkill %s" % self.app)
-        self.is_running = False
-    '''    
 
   def system(self, cmd):
     try:
@@ -240,26 +206,19 @@ class App():
                      output=e.output[-1024:],
                      returncode=e.returncode)
 
+  def isRunning():
+    #Check if this app is running  
+    #Iterate over the all the running process
+    for proc in psutil.process_iter():
+      try:
+        # Check if process name contains the given name string.
+        if self.app.lower() in self.app.name().lower():
+          return True
+      except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        pass
+    return False;
+
 def init_apps(apps):
-  '''
-  apps.append(App(
-    "com.waze",
-    "am start -n com.waze/com.waze.MainActivity",
-    "dp_app_waze",
-    None,
-    "dp_app_waze_manual",
-    App.TYPE_FULLSCREEN,
-    False,
-    [
-      "android.permission.ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_COARSE_LOCATION",
-      "android.permission.READ_EXTERNAL_STORAGE",
-      "android.permission.WRITE_EXTERNAL_STORAGE",
-      "android.permission.RECORD_AUDIO",
-    ],
-    [],
-  ))
-  '''
   apps.append(App(
     "com.sygic.aura",
     "am start -n com.sygic.aura/com.sygic.aura.activity.NaviNativeActivity",
@@ -295,151 +254,30 @@ def main():
       #check if we are on road, run waze if on road, i.e ignition detected, kill app if not on road
       is_onroad = params.get("IsOffroad") != b"1"
       #start GPS app right away if ignition change is detected
-      #TODO: Improve the way we detect if Waze/Sygic app is running or not
       if is_onroad and not is_onroad_prev:
-        for app in apps:  
-          app.run()
+        for app in apps:
+          #Only start app if it is not running
+          if not app.isRunning():
+            app.run()
+
+      #Close all apps when we are offroad      
       if not is_onroad:
         for app in apps:
           if app.is_running:
             app.kill()
 
-
-      #try to restart Waze/Sygic app every 30 seconds (.i.e every 30 frames)
+      #check if app is running and restart it every 30 seconds (.i.e every 30 frames)
       if frame >= 30:
         frame = 0 #reset frame count when it exceeds 30
         for app in apps:
-          if is_onroad and is_onroad_prev:
+          if is_onroad and is_onroad_prev and not app.isRunning():
             app.run()
       
       #update is_onroad_prev    
       is_onroad_prev = is_onroad      
 
     frame += 1
-    time.sleep(1) #just sleep 5 seconds
-      
-
-    '''
-  apps = []
-
-  last_started = False
-  sm = messaging.SubMaster(['dragonConf'])
-
-  frame = 0
-  start_delay = None
-  stop_delay = None
-  allow_auto_run = True
-
-  last_overheat = False
-  init_done = False
-  dragon_conf_msg = None
-
-  next_check_process_frame = 0
-
-  while 1: #has_enabled_apps:
-    start_sec = sec_since_boot()
-    if not init_done:
-      if frame >= 10:
-        init_apps(apps)
-        sm.update()
-        dragon_conf_msg = sm['dragonConf']
-        init_done = True
-    else:
-      sm.update(1000)
-      if sm.updated['dragonConf']:
-        dragon_conf_msg = sm['dragonConf']
-      else:
-        continue
-      enabled_apps = []
-      has_fullscreen_apps = False
-      has_check_crash = False
-      for app in apps:
-        # read params loop
-        app.read_params(dragon_conf_msg)
-        if app.last_is_enabled and not app.is_enabled and app.is_running:
-          app.kill(True)
-
-        if app.is_enabled:
-          if not has_fullscreen_apps and app.app_type in [App.TYPE_FULLSCREEN, App.TYPE_ANDROID_AUTO]:
-            has_fullscreen_apps = True
-          if not has_check_crash and app.check_crash:
-            has_check_crash = True
-
-          # process manual ctrl apps
-          if app.manual_ctrl_status != App.MANUAL_IDLE:
-            app.run(True) if app.manual_ctrl_status == App.MANUAL_ON else app.kill(True)
-
-          enabled_apps.append(app)
-
-      started = dragon_conf_msg.dpThermalStarted
-      # when car is running
-      if started:
-        # we run service apps and kill all util apps
-        # only run once
-        if last_started != started:
-          for app in enabled_apps:
-            if app.app_type in [App.TYPE_SERVICE]:
-              app.run()
-            elif app.app_type == App.TYPE_UTIL:
-              app.kill()
-
-        stop_delay = None
-        # apps start 5 secs later
-        if start_delay is None:
-          start_delay = frame + 5
-
-        if not dragon_conf_msg.dpThermalOverheat:
-          allow_auto_run = True
-          # when temp reduce from red to yellow, we add start up delay as well
-          # so apps will not start up immediately
-          if last_overheat:
-            start_delay = frame + 60
-        else:
-          allow_auto_run = False
-        last_overheat = dragon_conf_msg.dpThermalOverheat
-
-        # only run apps that's not manually ctrled
-        if has_check_crash and frame >= next_check_process_frame:
-          for app in enabled_apps:
-            if app.is_running and app.check_crash and app.is_crashed():
-              app.kill()
-          next_check_process_frame = frame + 15
-
-        for app in enabled_apps:
-          if not app.manually_ctrled:
-            if has_fullscreen_apps:
-              if app.app_type in [App.TYPE_FULLSCREEN, App.TYPE_ANDROID_AUTO]:
-                app.run()
-              elif app.app_type in [App.TYPE_GPS, App.TYPE_UTIL]:
-                app.kill()
-            else:
-              if not allow_auto_run:
-                app.kill()
-              else:
-                if frame >= start_delay and app.is_auto_runnable and app.app_type == App.TYPE_GPS:
-                  app.run()
-      # when car is stopped
-      else:
-        start_delay = None
-        # set delay to 30 seconds
-        if stop_delay is None:
-          stop_delay = frame + 30
-
-        for app in enabled_apps:
-          if app.is_running and not app.manually_ctrled:
-            if has_fullscreen_apps or frame >= stop_delay:
-              app.kill()
-
-      if last_started != started:
-        for app in enabled_apps:
-          app.manually_ctrled = False
-
-      last_started = started
-    frame += 1
-    sleep = 1 - (sec_since_boot() - start_sec)
-    if sleep > 0:
-      time.sleep(sleep)
-      '''
+    time.sleep(1) #just sleep 1 second
 
 def system(cmd):
   try:
