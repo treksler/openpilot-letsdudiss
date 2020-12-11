@@ -206,13 +206,13 @@ class App():
                      output=e.output[-1024:],
                      returncode=e.returncode)
 
-  def isRunning():
+  def isRunning(self):
     #Check if this app is running  
     #Iterate over the all the running process
     for proc in psutil.process_iter():
       try:
         # Check if process name contains the given name string.
-        if self.app.lower() in self.app.name().lower():
+        if self.app.lower() in proc.name().lower():
           return True
       except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
         pass
@@ -257,7 +257,7 @@ def main():
       if is_onroad and not is_onroad_prev:
         for app in apps:
           #Only start app if it is not running
-          if not app.isRunning():
+          #if not app.isRunning():
             app.run()
 
       #Close all apps when we are offroad      
@@ -270,7 +270,8 @@ def main():
       if frame >= 30:
         frame = 0 #reset frame count when it exceeds 30
         for app in apps:
-          if is_onroad and is_onroad_prev and not app.isRunning():
+          #if is_onroad and is_onroad_prev and not app.isRunning():
+          if is_onroad and is_onroad_prev:
             app.run()
       
       #update is_onroad_prev    
