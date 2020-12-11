@@ -258,7 +258,7 @@ def main():
         for app in apps:
           #Only start app if it is not running
           #if not app.isRunning():
-            app.run()
+          app.run()
 
       #Close all apps when we are offroad      
       if not is_onroad:
@@ -270,8 +270,9 @@ def main():
       if frame >= 30:
         frame = 0 #reset frame count when it exceeds 30
         for app in apps:
-          #if is_onroad and is_onroad_prev and not app.isRunning():
-          if is_onroad and is_onroad_prev:
+          #if app is detected to be dead and we are on-road, restart the app  
+          if is_onroad and is_onroad_prev and not app.isRunning():
+          #if is_onroad and is_onroad_prev:
             app.run()
       
       #update is_onroad_prev    
