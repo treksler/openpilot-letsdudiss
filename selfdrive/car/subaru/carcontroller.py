@@ -19,6 +19,12 @@ class CarControllerParams():
 
 class CarController():
   def __init__(self, dbc_name, CP, VM):
+
+    #
+    #Set below to False to disable feature that turn off Engine Auto Stop Start when car starts
+    #
+    self.feature_no_engine_stop_start = True
+
     self.apply_steer_last = 0
     self.es_distance_cnt = -1
     self.es_accel_cnt = -1
@@ -47,9 +53,9 @@ class CarController():
       apply_steer = apply_std_steer_torque_limits(new_steer, self.apply_steer_last, CS.out.steeringTorque, self.params)
       self.steer_rate_limited = new_steer != apply_steer
 
-    #@letdudiss 18 Nov 2020 Work around for steerWarning to
-    #Avoids LKAS and ES fault when OP apply a steer value exceed what ES allows
-    #set Steering value to 0 when a steer Warning is present
+      #@letdudiss 18 Nov 2020 Work around for steerWarning to
+      #Avoids LKAS and ES fault when OP apply a steer value exceed what ES allows
+      #set Steering value to 0 when a steer Warning is present
       if not enabled or CS.out.steerWarning:
         apply_steer = 0
 
@@ -98,7 +104,7 @@ class CarController():
         self.has_set_auto_ss = True
 
       #Send message to press AutoSS button, only do it once, when car starts up, after that, driver can turn it back on if they want
-      if self.dashlights_cnt != CS.dashlights_msg["Counter"] and not self.has_set_auto_ss:
+      if self.dashlights_cnt != CS.dashlights_msg["Counter"] and not self.has_set_auto_ss and self.feature_no_engine_stop_start:
         can_sends.append(subarucan.create_dashlights(self.packer, CS.dashlights_msg, True))
         self.dashlights_cnt = CS.dashlights_msg["Counter"]
 

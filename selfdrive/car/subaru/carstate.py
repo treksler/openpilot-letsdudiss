@@ -55,7 +55,12 @@ class CarState(CarStateBase):
     ret.cruiseState.available = cp.vl["CruiseControl"]['Cruise_On'] != 0
     ret.cruiseState.speed = cp_cam.vl["ES_DashStatus"]['Cruise_Set_Speed'] * CV.KPH_TO_MS
 
-    #Detect Enginer Auto Stop Start State
+    #@LetsDuDiss 17 Dec 2020: Detect Engine Auto Stop Start State, this will allow carcontroller.py to only
+    #fake an AutoSS button once, the fake button press will repeat until the below state for AutoSS is 3
+    #Assumption: State == 3 => Turned OFF (Orange/Yellow icon)
+    #            State == 2 => Not possible (white icon with strike diagonally)
+    #            State == 1 => Engine Stopped ???
+    #            State == 0 => Ready
     self.autoStopStartDisabled = cp.vl["Engine_Auto_SS"]['AUTO_SS_STATE'] == 3
 
     # UDM Forester, Legacy: mph = 0
@@ -81,6 +86,7 @@ class CarState(CarStateBase):
       ret.cruiseState.nonAdaptive = cp_cam.vl["ES_DashStatus"]['Conventional_Cruise'] == 1
       self.es_distance_msg = copy.copy(cp_cam.vl["ES_Distance"])
       self.es_lkas_msg = copy.copy(cp_cam.vl["ES_LKAS_State"])
+      #@LetsDuDiss 17 Dec 2020: Make a copy of Dashlights message so we can modify it in carcontroller.py and subarucan.py
       self.dashlights_msg = copy.copy(cp.vl["Dashlights"])
 
     return ret
@@ -100,6 +106,9 @@ class CarState(CarStateBase):
       ("LEFT_BLINKER", "Dashlights", 0),
       ("RIGHT_BLINKER", "Dashlights", 0),
       ("SEATBELT_FL", "Dashlights", 0),
+      #@LetsDuDiss 17 Dec 2020: Added signal labels and default values to Dashlights messages (IMPORATANT: including Counter)
+      #so that Dashlight messages composed by OP is sent without any possibility of errors. It is important to initialise Counter
+      #as without it carcontroller.py will crash when it tries to read Counter attribute of Dashlights message.
       ("AUTO_SS_BTN", "Dashlights", 0),
       ("ICY_ROAD", "Dashlights", 0),
       ("Counter", "Dashlights", 0),
@@ -127,6 +136,8 @@ class CarState(CarStateBase):
       ("L_APPROACHING", "BSD_RCTA", 0),
       ("R_APPROACHING", "BSD_RCTA", 0),
       ("Steer_Error_1", "Steering_Torque", 0),
+      #@LetsDuDiss 17 Dec 2020: Added new message that contains the State of AutoSS, enables controller.py to
+      #only fake AutoSS toggle button press once.
       ("AUTO_SS_STATE", "Engine_Auto_SS", 0),
     ]
 
