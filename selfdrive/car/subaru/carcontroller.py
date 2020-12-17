@@ -23,8 +23,10 @@ class CarController():
     self.es_distance_cnt = -1
     self.es_accel_cnt = -1
     self.es_lkas_cnt = -1
+    self.dashlights_cnt = -1
     self.fake_button_prev = 0
     self.steer_rate_limited = False
+    self.has_sent_ss_btn = False
 
     self.params = CarControllerParams()
     self.packer = CANPacker(DBC[CP.carFingerprint]['pt'])
@@ -88,5 +90,10 @@ class CarController():
       if self.es_lkas_cnt != CS.es_lkas_msg["Counter"]:
         can_sends.append(subarucan.create_es_lkas(self.packer, CS.es_lkas_msg, visual_alert, left_line, right_line))
         self.es_lkas_cnt = CS.es_lkas_msg["Counter"]
+
+      if self.dashlights_cnt != CS.dashlights_msg["Counter"] and not self.has_sent_ss_btn:
+        can_sends.append(subarucan.create_dashlights(self.packer, CS.dashlights_msg, False))
+        self.dashlights_cnt = CS.dashlights_msg["Counter"]
+        self.has_sent_ss_btn = True
 
     return can_sends
