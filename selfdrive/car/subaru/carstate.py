@@ -89,6 +89,8 @@ class CarState(CarStateBase):
       #@LetsDuDiss 17 Dec 2020: Make a copy of Dashlights message so we can modify it in carcontroller.py and subarucan.py
       self.dashlights_msg = copy.copy(cp.vl["Dashlights"])
 
+      self.throttle_msg = copy.copy(cp.vl["Throttle"])
+
     return ret
 
   @staticmethod
@@ -102,7 +104,17 @@ class CarState(CarStateBase):
       ("Cruise_On", "CruiseControl", 0),
       ("Cruise_Activated", "CruiseControl", 0),
       ("Brake_Pedal", "Brake_Pedal", 0),
+
+      ("Counter", "Throttle", 0),
+      ("SPARE_SIGNAL_1", "Throttle", 0),
+      ("Engine_RPM", "Throttle", 0),
+      ("SPARE_SIGNAL_2", "Throttle", 0),
       ("Throttle_Pedal", "Throttle", 0),
+      ("Throttle_Cruise", "Throttle", 0),
+      ("Throttle_Combo", "Throttle", 0),
+      ("Signal1", "Throttle", 0),
+      ("Off_Accel", "Throttle", 0),
+
       ("LEFT_BLINKER", "Dashlights", 0),
       ("RIGHT_BLINKER", "Dashlights", 0),
       ("SEATBELT_FL", "Dashlights", 0),
