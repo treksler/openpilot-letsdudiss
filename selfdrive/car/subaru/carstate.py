@@ -55,6 +55,9 @@ class CarState(CarStateBase):
     ret.cruiseState.available = cp.vl["CruiseControl"]['Cruise_On'] != 0
     ret.cruiseState.speed = cp_cam.vl["ES_DashStatus"]['Cruise_Set_Speed'] * CV.KPH_TO_MS
 
+    #Detect Enginer Auto Stop Start State
+    self.autoStopStartDisabled = cp.vl["Engine_Auto_SS"]['AUTO_SS_STATE'] == 3
+
     # UDM Forester, Legacy: mph = 0
     if self.car_fingerprint in [CAR.FORESTER_PREGLOBAL, CAR.LEGACY_PREGLOBAL] and cp.vl["Dash_State"]['Units'] == 0:
       ret.cruiseState.speed *= CV.MPH_TO_KPH
@@ -68,7 +71,6 @@ class CarState(CarStateBase):
                         cp.vl["BodyInfo"]['DOOR_OPEN_FR'],
                         cp.vl["BodyInfo"]['DOOR_OPEN_FL']])
     ret.steerError = cp.vl["Steering_Torque"]['Steer_Error_1'] == 1
-    #ret.stopStartState = cp.vl["STOP_START"]['State'] == 1
 
     if self.car_fingerprint in PREGLOBAL_CARS:
       self.button = cp_cam.vl["ES_CruiseThrottle"]["Cruise_Button"]
@@ -99,6 +101,17 @@ class CarState(CarStateBase):
       ("RIGHT_BLINKER", "Dashlights", 0),
       ("SEATBELT_FL", "Dashlights", 0),
       ("AUTO_SS_BTN", "Dashlights", 0),
+      ("ICY_ROAD", "Dashlights", 0),
+      ("Counter", "Dashlights", 0),
+      ("SPARE_SIGNAL_2", "Dashlights", 0),
+      ("SPARE_SIGNAL_3", "Dashlights", 0),
+      ("SPARE_SIGNAL_4", "Dashlights", 0),
+      ("SPARE_SIGNAL_5", "Dashlights", 0),
+      ("SPARE_SIGNAL_6", "Dashlights", 0),
+      ("SPARE_SIGNAL_7", "Dashlights", 0),
+      ("SPARE_SIGNAL_1", "Dashlights", 0),
+      ("SPARE_SIGNAL_8", "Dashlights", 0),
+      ("SPARE_SIGNAL_9", "Dashlights", 0),
       ("FL", "Wheel_Speeds", 0),
       ("FR", "Wheel_Speeds", 0),
       ("RL", "Wheel_Speeds", 0),
@@ -114,6 +127,7 @@ class CarState(CarStateBase):
       ("L_APPROACHING", "BSD_RCTA", 0),
       ("R_APPROACHING", "BSD_RCTA", 0),
       ("Steer_Error_1", "Steering_Torque", 0),
+      ("AUTO_SS_STATE", "Engine_Auto_SS", 0),
     ]
 
     checks = [

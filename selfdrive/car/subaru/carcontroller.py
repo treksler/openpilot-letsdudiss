@@ -26,10 +26,11 @@ class CarController():
     self.dashlights_cnt = -1
     self.fake_button_prev = 0
     self.steer_rate_limited = False
-    self.has_sent_ss_btn = False
+    self.has_set_auto_ss = False
 
     self.params = CarControllerParams()
     self.packer = CANPacker(DBC[CP.carFingerprint]['pt'])
+    self.frame = 0
 
   def update(self, enabled, CS, frame, actuators, pcm_cancel_cmd, visual_alert, left_line, right_line):
 
@@ -91,9 +92,14 @@ class CarController():
         can_sends.append(subarucan.create_es_lkas(self.packer, CS.es_lkas_msg, visual_alert, left_line, right_line))
         self.es_lkas_cnt = CS.es_lkas_msg["Counter"]
 
-      if self.dashlights_cnt != CS.dashlights_msg["Counter"] and not self.has_sent_ss_btn:
-        can_sends.append(subarucan.create_dashlights(self.packer, CS.dashlights_msg, False))
+      #If Auto Stop Start has gone to state 3 at least once, it means either we have successfully turn off autoStopStart
+      #or driver manually turn it off before we got to it
+      if CS.autoStopStartDisabled:
+        self.has_set_auto_ss = True
+
+      #Send message to press AutoSS button, only do it once, when car starts up, after that, driver can turn it back on if they want
+      if self.dashlights_cnt != CS.dashlights_msg["Counter"] and not self.has_set_auto_ss:
+        can_sends.append(subarucan.create_dashlights(self.packer, CS.dashlights_msg, True))
         self.dashlights_cnt = CS.dashlights_msg["Counter"]
-        self.has_sent_ss_btn = True
 
     return can_sends
