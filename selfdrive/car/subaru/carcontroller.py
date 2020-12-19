@@ -16,6 +16,11 @@ class CarControllerParams():
     self.STEER_DRIVER_MULTIPLIER = 10  # weight driver torque heavily
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
+    #SUBARU STOP AND GO
+    self.SNG_DISTANCE = 170            # distance trigger value for stop and go (0-255)
+    self.THROTTLE_TAP_LIMIT = 20       # send a maximum of 20 throttle tap messages (trial and error)
+    self.THROTTLE_TAP_LEVEL = 20       # send a throttle message with value of 20 (trial and error)
+
 
 class CarController():
   def __init__(self, dbc_name, CP, VM):
@@ -30,6 +35,7 @@ class CarController():
     self.es_accel_cnt = -1
     self.es_lkas_cnt = -1
     self.dashlights_cnt = -1
+    self.throttle_cnt = -1
     self.fake_button_prev = 0
     self.steer_rate_limited = False
     self.has_set_auto_ss = False
@@ -37,6 +43,13 @@ class CarController():
     self.params = CarControllerParams()
     self.packer = CANPacker(DBC[CP.carFingerprint]['pt'])
     self.frame = 0
+
+    #SUBARU STOP AND GO flags and vars
+    self.manual_hold = False
+    self.prev_close_distance = 0
+    self.prev_cruise_state = 0
+    self.sng_throttle_tap_cnt = 0
+    self.sng_resume_acc = False
 
   def update(self, enabled, CS, frame, actuators, pcm_cancel_cmd, visual_alert, left_line, right_line):
 
@@ -66,6 +79,45 @@ class CarController():
 
       self.apply_steer_last = apply_steer
 
+    #----------------------Subaru STOP AND GO------------------------
+    # Record manual hold set while in standstill while no car in front
+    if CS.out.standstill and self.prev_cruise_state == 1 and CS.cruise_state == 3 and CS.car_follow == 0:
+      self.manual_hold = True
+
+    # Cancel manual hold when car starts moving
+    if not CS.out.standstill:
+      self.manual_hold = False
+      self.sng_throttle_tap_cnt = 0    #Reset throttle tap message count when car starts moving
+      self.sng_resume_acc = False  #Cancel throttle tap when car starts moving
+
+    #Resume when not in MANUAL HOLD and lead car has moved forward
+    # Trigger THROTTLE TAP when in hold and close_distance increases > SNG_DISTANCE
+    # Ignore when hold has been set in standstill (eg at traffic lights) to avoid 
+    # false positives caused by pedestrians/cyclists crossing the street in front of car
+    self.sng_resume_acc = False
+    if (enabled
+        and CS.cruise_state == 3 #cruise state == 3 => ACC HOLD state
+        and CS.close_distance > self.params.SNG_DISTANCE #lead car is close enough (<170 distance)
+        and CS.close_distance < 255
+        and CS.out.standstill                            #standing still
+        and self.prev_close_distance < CS.close_distance #lead car is moving
+        and CS.car_follow == 1
+        and not self.manual_hold):
+      self.sng_resume_acc = True
+
+    #Send a throttle tap to resume ACC
+    throttle_cmd = -1 #normally, just forward throttle msg from ECU
+    if self.sng_resume_acc:
+      #Send Maximum <THROTTLE_TAP_LIMIT> to get car out of HOLD
+      if self.sng_throttle_tap_cnt < self.params.THROTTLE_TAP_LIMIT:
+        throttle_cmd = self.params.THROTTLE_TAP_LEVEL
+        self.sng_throttle_tap_cnt += 1
+      else:
+        self.sng_throttle_tap_cnt = -1
+        self.sng_resume_acc = False
+    #TODO: Send cruise throttle to get car up to speed. There is a 2-3 seconds delay after
+    # throttle tap is sent and car start moving    
+    #------------------------------------------------------------------
 
     # *** alerts and pcm cancel ***
 
@@ -107,5 +159,11 @@ class CarController():
       if self.dashlights_cnt != CS.dashlights_msg["Counter"] and not self.has_set_auto_ss and self.feature_no_engine_stop_start:
         can_sends.append(subarucan.create_dashlights(self.packer, CS.dashlights_msg, True))
         self.dashlights_cnt = CS.dashlights_msg["Counter"]
+
+      #-------------Subaru STOP AND GO: Send throttle message-------------
+      if self.throttle_cnt != CS.throttle_msg["Counter"]:
+        can_sends.append(subarucan.create_throttle(self.packer, CS.throttle_msg, throttle_cmd))
+        self.throttle_cnt = CS.throttle_msg["Counter"]
+      #-------------------------------------------------------------------  
 
     return can_sends
