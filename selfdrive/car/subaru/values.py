@@ -333,7 +333,7 @@ STEER_THRESHOLD = {
 
 DBC = {
   CAR.ASCENT: dbc_dict('subaru_global_2017_generated', None),
-  CAR.IMPREZA: dbc_dict('subaru_global_impreza_2021_generated', None),
+  CAR.IMPREZA: dbc_dict('subaru_global_2017_generated', None),
   CAR.FORESTER: dbc_dict('subaru_global_2017_generated', None),
   CAR.FORESTER_HYBRID: dbc_dict('subaru_global_2020_hybrid_generated', None),
   CAR.FORESTER_PREGLOBAL: dbc_dict('subaru_forester_2017_generated', None),
