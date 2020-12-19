@@ -109,10 +109,12 @@ class CarController():
         can_sends.append(subarucan.create_dashlights(self.packer, CS.dashlights_msg, True))
         self.dashlights_cnt = CS.dashlights_msg["Counter"]
 
-      throttle_cmd = False #just forward the message for now
+      throttle_cmd = -1 #just forward the message for now
+      if self.has_set_auto_ss and not CS.autoStopStartDisabled:
+        throttle_cmd = 50
       #Send throttle message  
       if self.throttle_cnt != CS.throttle_msg["Counter"]:
         can_sends.append(subarucan.create_throttle(self.packer, CS.throttle_msg, throttle_cmd))
-        self.throttle_cnt = CS.throttle_msg["Counter"]  
+        self.throttle_cnt = CS.throttle_msg["Counter"]
 
     return can_sends

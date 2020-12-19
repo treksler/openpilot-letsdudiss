@@ -105,6 +105,7 @@ class CarState(CarStateBase):
       ("Cruise_Activated", "CruiseControl", 0),
       ("Brake_Pedal", "Brake_Pedal", 0),
 
+      ("Checksum", "Throttle", 0),
       ("Counter", "Throttle", 0),
       ("SPARE_SIGNAL_1", "Throttle", 0),
       ("Engine_RPM", "Throttle", 0),
