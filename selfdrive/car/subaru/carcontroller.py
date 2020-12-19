@@ -16,6 +16,11 @@ class CarControllerParams():
     self.STEER_DRIVER_MULTIPLIER = 10  # weight driver torque heavily
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
+    #SUBARU STOP AND GO
+    self.SNG_DISTANCE = 170            # distance trigger value for stop and go (0-255)
+    self.THROTTLE_TAP_LIMIT = 20       # send a maximum of 20 throttle tap messages (trial and error)
+    self.THROTTLE_TAP_LEVEL = 20       # send a throttle message with value of 20 (trial and error)
+
 
 class CarController():
   def __init__(self, dbc_name, CP, VM):
@@ -39,8 +44,16 @@ class CarController():
     self.packer = CANPacker(DBC[CP.carFingerprint]['pt'])
     self.frame = 0
 
+    #STOP AND GO flags and vars
+    self.manual_hold = False
+    self.prev_close_distance = 0
+    self.prev_cruise_state = 0
+    self.throttle_tap_cnt = 0
+    self.sng_resume_acc = False
+
   def update(self, enabled, CS, frame, actuators, pcm_cancel_cmd, visual_alert, left_line, right_line):
 
+    P = self.params
     can_sends = []
 
     # *** steering ***
@@ -67,6 +80,46 @@ class CarController():
 
       self.apply_steer_last = apply_steer
 
+
+    # Record manual hold set while in standstill while no car in front
+    if CS.out.standstill and self.prev_cruise_state == 1 and CS.cruise_state == 3 and CS.car_follow == 0:
+      self.manual_hold = True
+
+    # Cancel manual hold when car starts moving
+    if not CS.out.standstill:
+      self.manual_hold = False
+      self.throttle_tap_cnt = 0         #Reset throttle tap message count when car starts moving
+      self.sng_resume_acc = False  #Cancel throttle tap when car starts moving
+
+    #Subaru STOP AND GO
+    #Resume when not in MANUAL HOLD and lead car has moved forward
+    # Trigger THROTTLE TAP when in hold and close_distance increases > SNG_DISTANCE
+    # Ignore when hold has been set in standstill (eg at traffic lights) to avoid 
+    # false positives caused by pedestrians/cyclists crossing the street in front of car
+    self.sng_resume_acc = False
+    if (enabled
+        and CS.cruise_state == 3 #cruise state == 3 => ACC HOLD state
+        and CS.close_distance > P.SNG_DISTANCE
+        and CS.close_distance < 255
+        and CS.out.standstill
+        and self.prev_close_distance < CS.close_distance
+        and CS.car_follow == 1
+        and not self.manual_hold):
+      self.sng_resume_acc = True
+
+    #Send a throttle tap to resume ACC
+    throttle_cmd = -1 #normally, just forward throttle msg from ECU
+    if self.sng_resume_acc:
+      #Send Maximum <THROTTLE_TAP_LIMIT> to get car out of HOLD
+      if self.throttle_tap_cnt < P.THROTTLE_TAP_LIMIT:
+        throttle_cmd = P.THROTTLE_TAP_LEVEL
+        self.throttle_tap_cnt += 1
+      else:
+        self.throttle_tap_cnt = -1
+        self.sng_resume_acc = False
+
+    #if self.has_set_auto_ss and not CS.autoStopStartDisabled:
+    #  throttle_cmd = 20
 
     # *** alerts and pcm cancel ***
 
@@ -109,10 +162,7 @@ class CarController():
         can_sends.append(subarucan.create_dashlights(self.packer, CS.dashlights_msg, True))
         self.dashlights_cnt = CS.dashlights_msg["Counter"]
 
-      throttle_cmd = -1 #just forward the message for now
-      if self.has_set_auto_ss and not CS.autoStopStartDisabled:
-        throttle_cmd = 50
-      #Send throttle message  
+      #Subaru STOP AND GO: Send throttle message  
       if self.throttle_cnt != CS.throttle_msg["Counter"]:
         can_sends.append(subarucan.create_throttle(self.packer, CS.throttle_msg, throttle_cmd))
         self.throttle_cnt = CS.throttle_msg["Counter"]

@@ -43,7 +43,7 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.0025, 0.1], [0.00025, 0.01]]
 
     if candidate == CAR.IMPREZA:
-      ret.mass = 1568. + STD_CARGO_KG
+      ret.mass = 1480. + STD_CARGO_KG
       ret.wheelbase = 2.67
       ret.centerToFront = ret.wheelbase * 0.5
       ret.steerRatio = 17           # learned, 14 stock
