@@ -32,7 +32,7 @@ def create_throttle(packer, throttle_msg, throttle_cmd):
   values = copy.copy(throttle_msg)
   #Only modify throttle_pedal if command is not -1, otherwise, just bypass/forward original message
   #For safety, limit our throttle command to 20 (out of 255)
-  if throttle_cmd != -1 and throttle_cmd <= 20:
+  if throttle_cmd != -1 and throttle_cmd <= 10:
     values["Throttle_Pedal"] = throttle_cmd
 
   return packer.make_can_msg("Throttle", 2, values)

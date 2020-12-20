@@ -17,9 +17,9 @@ class CarControllerParams():
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
     #SUBARU STOP AND GO
-    self.SNG_DISTANCE = 170            # distance trigger value for stop and go (0-255)
-    self.THROTTLE_TAP_LIMIT = 20       # send a maximum of 20 throttle tap messages (trial and error)
-    self.THROTTLE_TAP_LEVEL = 20       # send a throttle message with value of 20 (trial and error)
+    self.SNG_DISTANCE = 150            # distance trigger value for stop and go (0-255)
+    self.THROTTLE_TAP_LIMIT = 10       # send a maximum of 10 throttle tap messages (trial and error)
+    self.THROTTLE_TAP_LEVEL = 10       # send a throttle message with value of 10 (trial and error)
 
 
 class CarController():
