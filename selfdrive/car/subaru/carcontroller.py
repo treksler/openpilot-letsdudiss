@@ -17,9 +17,10 @@ class CarControllerParams():
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
     #SUBARU STOP AND GO
-    self.SNG_DISTANCE = 120            # distance trigger value for stop and go (0-255)
-    self.THROTTLE_TAP_LIMIT = 5        # send a maximum of 5 throttle tap messages (trial and error)
-    self.THROTTLE_TAP_LEVEL = 5        # send a throttle message with value of 5 (trial and error)
+    self.SNG_DISTANCE_LIMIT = 260     # distance trigger value limit for stop and go (0-255)
+    self.SNG_DISTANCE_DEADBAND = 5    # deadband for SNG lead car refence distance to cater for Close_Distance sensor noises
+    self.THROTTLE_TAP_LIMIT = 5       # send a maximum of 5 throttle tap messages (trial and error)
+    self.THROTTLE_TAP_LEVEL = 5       # send a throttle message with value of 5 (trial and error)
 
 
 class CarController():
@@ -45,11 +46,12 @@ class CarController():
     self.frame = 0
 
     #SUBARU STOP AND GO flags and vars
-    self.manual_hold = False
     self.prev_close_distance = 0
     self.prev_cruise_state = 0
     self.sng_throttle_tap_cnt = 0
     self.sng_resume_acc = False
+    self.sng_has_recorded_distance = False
+    self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
 
   def update(self, enabled, CS, frame, actuators, pcm_cancel_cmd, visual_alert, left_line, right_line):
 
@@ -80,15 +82,19 @@ class CarController():
       self.apply_steer_last = apply_steer
 
     #----------------------Subaru STOP AND GO------------------------
-    # Record manual hold set while in standstill while no car in front
-    if CS.out.standstill and self.prev_cruise_state == 1 and CS.cruise_state == 3 and CS.car_follow == 0:
-      self.manual_hold = True
-
-    # Cancel manual hold when car starts moving
     if not CS.out.standstill:
-      self.manual_hold = False
-      self.sng_throttle_tap_cnt = 0    #Reset throttle tap message count when car starts moving
-      self.sng_resume_acc = False  #Cancel throttle tap when car starts moving
+      self.sng_throttle_tap_cnt = 0           #Reset throttle tap message count when car starts moving
+      self.sng_resume_acc = False             #Cancel throttle tap when car starts moving
+      self.sng_has_recorded_distance = False  #Reset has_recorded_distance flag once car started moving
+
+    #Record the current Close_Distance with lead car when Cruise State changes to HOLD, this
+    #will be used as a reference to tell when lead car has moved forward
+    if enabled and CS.cruise_state == 3 and not self.sng_has_recorded_distance:
+      self.sng_distance_threshold = CS.close_distance
+      self.sng_has_recorded_distance = True  
+      #Limit lead car reference distance to <SNG_DISTANCE_LIMIT>
+      if self.sng_distance_threshold > self.params.SNG_DISTANCE_LIMIT:
+        self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
 
     #Resume when not in MANUAL HOLD and lead car has moved forward
     # Trigger THROTTLE TAP when in hold and close_distance increases > SNG_DISTANCE
@@ -97,12 +103,11 @@ class CarController():
     self.sng_resume_acc = False
     if (enabled
         and CS.cruise_state == 3 #cruise state == 3 => ACC HOLD state
-        and CS.close_distance > self.params.SNG_DISTANCE #lead car is close enough (<120 distance)
+        and CS.close_distance > self.sng_distance_threshold + self.params.SNG_DISTANCE_DEADBAND #lead car distance is within SnG operating range
         and CS.close_distance < 255
-        and CS.out.standstill                            #standing still
         and self.prev_close_distance < CS.close_distance #lead car is moving
-        and CS.car_follow == 1
-        and not self.manual_hold):
+        and CS.out.standstill                            #standing still
+        and CS.car_follow == 1):
       self.sng_resume_acc = True
 
     #Send a throttle tap to resume ACC
@@ -116,7 +121,14 @@ class CarController():
         self.sng_throttle_tap_cnt = -1
         self.sng_resume_acc = False
     #TODO: Send cruise throttle to get car up to speed. There is a 2-3 seconds delay after
-    # throttle tap is sent and car start moving    
+    # throttle tap is sent and car start moving. EDIT: This is standard with Toyota OP's SnG
+    #pseudo: !!!WARNING!!! Dangerous, proceed with CARE
+    #if sng_resume_acc is True && has been 1 second since sng_resume_acc turns to True && current ES_Throttle < 2000
+    #    send ES_Throttle = 2000
+
+    #Update prev values
+    self.prev_cruise_state = CS.cruise_state
+    self.prev_close_distance = CS.close_distance
     #------------------------------------------------------------------
 
     # *** alerts and pcm cancel ***
