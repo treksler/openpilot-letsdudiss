@@ -46,8 +46,6 @@ class CarController():
     self.frame = 0
 
     #SUBARU STOP AND GO flags and vars
-    self.prev_close_distance = 0
-    self.prev_cruise_state = 0
     self.sng_throttle_tap_cnt = 0
     self.sng_resume_acc = False
     self.sng_has_recorded_distance = False
@@ -82,7 +80,9 @@ class CarController():
       self.apply_steer_last = apply_steer
 
     #----------------------Subaru STOP AND GO------------------------
-    if not CS.out.standstill:
+    #Car can only be in HOLD state (3) if it is standing still
+    # => if not in HOLD state car has to be moving or driver has taken action
+    if CS.cruise_state != 3:
       self.sng_throttle_tap_cnt = 0           #Reset throttle tap message count when car starts moving
       self.sng_resume_acc = False             #Cancel throttle tap when car starts moving
       self.sng_has_recorded_distance = False  #Reset has_recorded_distance flag once car started moving
@@ -91,7 +91,7 @@ class CarController():
     #will be used as a reference to tell when lead car has moved forward
     if enabled and CS.cruise_state == 3 and not self.sng_has_recorded_distance:
       self.sng_distance_threshold = CS.close_distance
-      self.sng_has_recorded_distance = True  
+      self.sng_has_recorded_distance = True   #Set flag to true so sng_distance_threshold wont be recorded again until car moves
       #Limit lead car reference distance to <SNG_DISTANCE_LIMIT>
       if self.sng_distance_threshold > self.params.SNG_DISTANCE_LIMIT:
         self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
@@ -105,8 +105,6 @@ class CarController():
         and CS.cruise_state == 3 #cruise state == 3 => ACC HOLD state
         and CS.close_distance > self.sng_distance_threshold + self.params.SNG_DISTANCE_DEADBAND #lead car distance is within SnG operating range
         and CS.close_distance < 255
-        and self.prev_close_distance < CS.close_distance #lead car is moving
-        and CS.out.standstill                            #standing still
         and CS.car_follow == 1):
       self.sng_resume_acc = True
 
@@ -125,10 +123,6 @@ class CarController():
     #pseudo: !!!WARNING!!! Dangerous, proceed with CARE
     #if sng_resume_acc is True && has been 1 second since sng_resume_acc turns to True && current ES_Throttle < 2000
     #    send ES_Throttle = 2000
-
-    #Update prev values
-    self.prev_cruise_state = CS.cruise_state
-    self.prev_close_distance = CS.close_distance
     #------------------------------------------------------------------
 
     # *** alerts and pcm cancel ***
