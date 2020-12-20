@@ -17,9 +17,9 @@ class CarControllerParams():
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
     #SUBARU STOP AND GO
-    self.SNG_DISTANCE = 150            # distance trigger value for stop and go (0-255)
-    self.THROTTLE_TAP_LIMIT = 10       # send a maximum of 10 throttle tap messages (trial and error)
-    self.THROTTLE_TAP_LEVEL = 10       # send a throttle message with value of 10 (trial and error)
+    self.SNG_DISTANCE = 120            # distance trigger value for stop and go (0-255)
+    self.THROTTLE_TAP_LIMIT = 5        # send a maximum of 5 throttle tap messages (trial and error)
+    self.THROTTLE_TAP_LEVEL = 5        # send a throttle message with value of 5 (trial and error)
 
 
 class CarController():
@@ -97,7 +97,7 @@ class CarController():
     self.sng_resume_acc = False
     if (enabled
         and CS.cruise_state == 3 #cruise state == 3 => ACC HOLD state
-        and CS.close_distance > self.params.SNG_DISTANCE #lead car is close enough (<170 distance)
+        and CS.close_distance > self.params.SNG_DISTANCE #lead car is close enough (<120 distance)
         and CS.close_distance < 255
         and CS.out.standstill                            #standing still
         and self.prev_close_distance < CS.close_distance #lead car is moving
