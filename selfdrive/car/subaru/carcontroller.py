@@ -19,7 +19,6 @@ class CarControllerParams():
 
     #SUBARU STOP AND GO
     self.SNG_DISTANCE_LIMIT = 170      # distance trigger value limit for stop and go (0-255)
-    self.SNG_DISTANCE_LOWER_LIMIT = 80 # lower distance trigger value limit for stop and go (0-255), any SNG distance lower than this value is considered invalid
     self.SNG_DISTANCE_DEADBAND = 9     # deadband for SNG lead car refence distance to cater for Close_Distance sensor noises
     self.THROTTLE_TAP_LIMIT = 5        # send a maximum of 5 throttle tap messages (trial and error)
     self.THROTTLE_TAP_LEVEL = 5        # send a throttle message with value of 5 (trial and error)
@@ -107,11 +106,10 @@ class CarController():
     if (enabled
         and CS.cruise_state == 3                #in HOLD state
         and not self.sng_has_recorded_distance  #has not recorded reference distance
-        and CS.close_distance < self.params.SNG_DISTANCE_LOWER_LIMIT #if current Close Distance is below limit, dont record it as reference threshold
         and time.time_ns() > self.cruise_state_change_time + self.params.ES_CLOSE_DISTANCE_SETTLE_TIME): #wait 200ms before recording reference distance
       self.sng_distance_threshold = CS.close_distance
-      self.sng_has_recorded_distance = True   #Set flag to true so sng_distance_threshold wont be recorded again until car moves
-      #Limit lead car reference distance to within <SNG_DISTANCE_LIMIT> and <SNG_DISTANCE_LOWER_LIMIT>
+      self.sng_has_recorded_distance = True     #Set flag to true so sng_distance_threshold wont be recorded again until car moves
+      #Limit lead car reference distance to <SNG_DISTANCE_LIMIT>
       if self.sng_distance_threshold > self.params.SNG_DISTANCE_LIMIT:
         self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
 
