@@ -2,6 +2,7 @@ from selfdrive.car import apply_std_steer_torque_limits
 from selfdrive.car.subaru import subarucan
 from selfdrive.car.subaru.values import DBC, PREGLOBAL_CARS
 from opendbc.can.packer import CANPacker
+import time
 
 
 class CarControllerParams():
@@ -17,10 +18,12 @@ class CarControllerParams():
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
     #SUBARU STOP AND GO
-    self.SNG_DISTANCE_LIMIT = 260     # distance trigger value limit for stop and go (0-255)
-    self.SNG_DISTANCE_DEADBAND = 5    # deadband for SNG lead car refence distance to cater for Close_Distance sensor noises
-    self.THROTTLE_TAP_LIMIT = 5       # send a maximum of 5 throttle tap messages (trial and error)
-    self.THROTTLE_TAP_LEVEL = 5       # send a throttle message with value of 5 (trial and error)
+    self.SNG_DISTANCE_LIMIT = 170      # distance trigger value limit for stop and go (0-255)
+    self.SNG_DISTANCE_LOWER_LIMIT = 80 # lower distance trigger value limit for stop and go (0-255), any SNG distance lower than this value is considered invalid
+    self.SNG_DISTANCE_DEADBAND = 9     # deadband for SNG lead car refence distance to cater for Close_Distance sensor noises
+    self.THROTTLE_TAP_LIMIT = 5        # send a maximum of 5 throttle tap messages (trial and error)
+    self.THROTTLE_TAP_LEVEL = 5        # send a throttle message with value of 5 (trial and error)
+    self.ES_CLOSE_DISTANCE_SETTLE_TIME = 250000000  #(250ms) time taken (in nanoseconds) for ES's Close_Distance signal to settle (taking care of noise after stopping)
 
 
 class CarController():
@@ -46,6 +49,8 @@ class CarController():
     self.frame = 0
 
     #SUBARU STOP AND GO flags and vars
+    self.prev_cruise_state = -1
+    self.cruise_state_change_time = -1
     self.sng_throttle_tap_cnt = 0
     self.sng_resume_acc = False
     self.sng_has_recorded_distance = False
@@ -87,19 +92,32 @@ class CarController():
       self.sng_resume_acc = False             #Cancel throttle tap when car starts moving
       self.sng_has_recorded_distance = False  #Reset has_recorded_distance flag once car started moving
 
-    #Record the current Close_Distance with lead car when Cruise State changes to HOLD, this
-    #will be used as a reference to tell when lead car has moved forward
-    if enabled and CS.cruise_state == 3 and not self.sng_has_recorded_distance:
+    #Reset SNG distance threshold to limit value if we havent recorded a reference distance threshold
+    #This is to make sure car will always move forward when lead car moves before SnG reference distance
+    #threshold is recorded
+    if not self.sng_has_recorded_distance:
+      self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
+
+    #Record the time at which CruiseState change to HOLD (3)
+    if self.prev_cruise_state != 3 and CS.cruise_state == 3
+      self.cruise_state_change_time = time.time_ns()
+
+    #While in HOLD, wait <ES_CLOSE_DISTANCE_SETTLE_TIME> nanoseconds (since Cruise state changes to HOLD)
+    #before recording SnG lead car reference distance
+    if (enabled
+        and CS.cruise_state == 3                #in HOLD state
+        and not self.sng_has_recorded_distance  #has not recorded reference distance
+        and time.time_ns() > self.cruise_state_change_time + self.params.ES_CLOSE_DISTANCE_SETTLE_TIME): #wait 200ms before recording reference distance
       self.sng_distance_threshold = CS.close_distance
       self.sng_has_recorded_distance = True   #Set flag to true so sng_distance_threshold wont be recorded again until car moves
-      #Limit lead car reference distance to <SNG_DISTANCE_LIMIT>
+      #Limit lead car reference distance to within <SNG_DISTANCE_LIMIT> and <SNG_DISTANCE_LOWER_LIMIT>
       if self.sng_distance_threshold > self.params.SNG_DISTANCE_LIMIT:
         self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
+      if self.sng_distance_threshold <= self.params.SNG_DISTANCE_LOWER_LIMIT:
+        self.sng_distance_threshold = self.params.SNG_DISTANCE_LOWER_LIMIT  
 
-    #Resume when not in MANUAL HOLD and lead car has moved forward
-    # Trigger THROTTLE TAP when in hold and close_distance increases > SNG_DISTANCE
-    # Ignore when hold has been set in standstill (eg at traffic lights) to avoid 
-    # false positives caused by pedestrians/cyclists crossing the street in front of car
+    #Trigger THROTTLE TAP when in hold and close_distance increases > SNG distance threshold (with deadband)
+    #false positives caused by pedestrians/cyclists crossing the street in front of car
     self.sng_resume_acc = False
     if (enabled
         and CS.cruise_state == 3 #cruise state == 3 => ACC HOLD state
@@ -123,6 +141,9 @@ class CarController():
     #pseudo: !!!WARNING!!! Dangerous, proceed with CARE
     #if sng_resume_acc is True && has been 1 second since sng_resume_acc turns to True && current ES_Throttle < 2000
     #    send ES_Throttle = 2000
+
+    #Update prev values
+    self.prev_cruise_state = CS.cruise_state
     #------------------------------------------------------------------
 
     # *** alerts and pcm cancel ***
