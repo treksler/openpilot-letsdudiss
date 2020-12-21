@@ -107,14 +107,13 @@ class CarController():
     if (enabled
         and CS.cruise_state == 3                #in HOLD state
         and not self.sng_has_recorded_distance  #has not recorded reference distance
+        and CS.close_distance < self.params.SNG_DISTANCE_LOWER_LIMIT #if current Close Distance is below limit, dont record it as reference threshold
         and time.time_ns() > self.cruise_state_change_time + self.params.ES_CLOSE_DISTANCE_SETTLE_TIME): #wait 200ms before recording reference distance
       self.sng_distance_threshold = CS.close_distance
       self.sng_has_recorded_distance = True   #Set flag to true so sng_distance_threshold wont be recorded again until car moves
       #Limit lead car reference distance to within <SNG_DISTANCE_LIMIT> and <SNG_DISTANCE_LOWER_LIMIT>
       if self.sng_distance_threshold > self.params.SNG_DISTANCE_LIMIT:
         self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
-      if self.sng_distance_threshold <= self.params.SNG_DISTANCE_LOWER_LIMIT:
-        self.sng_distance_threshold = self.params.SNG_DISTANCE_LOWER_LIMIT  
 
     #Trigger THROTTLE TAP when in hold and close_distance increases > SNG distance threshold (with deadband)
     #false positives caused by pedestrians/cyclists crossing the street in front of car
