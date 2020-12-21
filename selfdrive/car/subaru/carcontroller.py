@@ -99,7 +99,7 @@ class CarController():
       self.sng_distance_threshold = self.params.SNG_DISTANCE_LIMIT
 
     #Record the time at which CruiseState change to HOLD (3)
-    if self.prev_cruise_state != 3 and CS.cruise_state == 3
+    if self.prev_cruise_state != 3 and CS.cruise_state == 3:
       self.cruise_state_change_time = time.time_ns()
 
     #While in HOLD, wait <ES_CLOSE_DISTANCE_SETTLE_TIME> nanoseconds (since Cruise state changes to HOLD)
