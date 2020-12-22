@@ -53,6 +53,14 @@ class CarController():
       self.apply_steer_last = apply_steer
 
 
+    #PRE-GLOBAL
+    throttle_cmd = -1 #just forward throttle message for now
+    #-------------Send throttle message-------------
+    if self.throttle_cnt != CS.throttle_msg["Counter"]:
+      can_sends.append(subarucan.create_preglobal_throttle_control(self.packer, CS.throttle_msg, throttle_cmd))
+      self.throttle_cnt = CS.throttle_msg["Counter"]
+    #------------------------------------------------  
+
     # *** alerts and pcm cancel ***
 
     if CS.CP.carFingerprint in PREGLOBAL_CARS:
