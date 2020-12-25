@@ -185,6 +185,10 @@ routes = {
     'carFingerprint': HYUNDAI.GENESIS_G70,
     'enableCamera': True,
   },
+  "6b301bf83f10aa90|2020-11-22--16-45-07": {
+    'carFingerprint': HYUNDAI.GENESIS_G80,
+    'enableCamera': True,
+  },
   "38bfd238edecbcd7|2018-08-22--09-45-44": {
     'carFingerprint': HYUNDAI.SANTA_FE,
     'enableCamera': False,
@@ -211,6 +215,10 @@ routes = {
   },
   "9c917ba0d42ffe78|2020-04-17--12-43-19": {
     'carFingerprint': HYUNDAI.PALISADE,
+    'enableCamera': True,
+  },
+  "2c5cf2dd6102e5da|2020-12-17--16-06-44": {
+    'carFingerprint': HYUNDAI.IONIQ_EV_2020,
     'enableCamera': True,
   },
   "610ebb9faaad6b43|2020-06-13--15-28-36": {
@@ -244,6 +252,12 @@ routes = {
   },
   "6cdecc4728d4af37|2020-02-23--15-44-18": {
     'carFingerprint': TOYOTA.CAMRY,
+    'enableCamera': True,
+    'enableDsu': False,
+    'fingerprintSource': 'fixed',
+  },
+  "3456ad0cd7281b24|2020-12-13--17-45-56": {
+    'carFingerprint': TOYOTA.CAMRY_TSS2,
     'enableCamera': True,
     'enableDsu': False,
     'fingerprintSource': 'fixed',
@@ -509,7 +523,6 @@ non_tested_cars = [
   HONDA.RIDGELINE,
   HYUNDAI.ELANTRA,
   HYUNDAI.ELANTRA_GT_I30,
-  HYUNDAI.GENESIS_G80,
   HYUNDAI.GENESIS_G90,
   HYUNDAI.KIA_FORTE,
   HYUNDAI.KIA_OPTIMA_H,
