@@ -270,7 +270,7 @@ FW_VERSIONS = {
       b'\xbd\xf2@`\x00',
     ],
     (Ecu.fwdRadar, 0x7d0, None): [
-      b'\xf1\x00\x00\x00\x00',
+      b'\x00\x00\x00',
     ],
   },
   # Outback with reversed driver torque signal
